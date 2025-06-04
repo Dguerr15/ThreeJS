@@ -12,6 +12,8 @@ let isDoorRising = false;
 let doorRiseStartTime = 0;
 let animationStartTime = 0;
 let lastTime = 0;
+const keys = {};
+const moveSpeed = 0.1;
 
 const animationDuration = 4;
 
@@ -108,6 +110,12 @@ function createGeometry() {
     createTorch(30, -4);
     createTorch(-42, -4);
     createTorch(42, -4);
+    createTorchFlame(18, -3);
+    createTorchFlame(30, -3);
+    createTorchFlame(-30, -3);
+    createTorchFlame(42, -3);
+    createTorchFlame(-42, -3);
+    createTorchFlame(-18, -3);
 }
 
 // Ground plane with tiling texture
@@ -389,11 +397,47 @@ function createFallbackSkySphere() {
     scene.add(skySphere);
 }
 
+function createTorchFlame(x, z) {
+    const particleCount = 50;
+    const particles = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount * 3; i += 3) {
+        positions[i] = x + (Math.random() - 0.5) * 0.5;
+        positions[i + 1] = 8.5 + Math.random() * 2;
+        positions[i + 2] = z + (Math.random() - 0.5) * 0.5;
+    }
+    
+    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const material = new THREE.PointsMaterial({
+        color: 0xff4400,
+        size: 0.1,
+        transparent: true,
+        opacity: 0.8
+    });
+    
+    const flame = new THREE.Points(particles, material);
+    scene.add(flame);
+    
+    return flame;
+}
+
 // Event handler setup
 function setupEventHandlers() {
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('click', onMouseClick);
     window.addEventListener('contextmenu', onRightClick);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+}
+
+function onKeyDown(event) {
+    keys[event.code] = true;
+}
+
+function onKeyUp(event) {
+    keys[event.code] = false;
 }
 
 // Handle window resizing
@@ -497,6 +541,30 @@ function updateDoorAnimation() {
     }
 }
 
+function updateCameraMovement() {
+    const direction = new THREE.Vector3();
+    
+    if (keys['KeyW']) {
+        camera.getWorldDirection(direction);
+        camera.position.addScaledVector(direction, moveSpeed);
+    }
+    if (keys['KeyS']) {
+        camera.getWorldDirection(direction);
+        camera.position.addScaledVector(direction, -moveSpeed);
+    }
+    if (keys['KeyA']) {
+        direction.setFromMatrixColumn(camera.matrix, 0);
+        camera.position.addScaledVector(direction, -moveSpeed);
+    }
+    if (keys['KeyD']) {
+        direction.setFromMatrixColumn(camera.matrix, 0);
+        camera.position.addScaledVector(direction, moveSpeed);
+    }
+    
+    controls.target.copy(camera.position).add(camera.getWorldDirection(new THREE.Vector3()));
+    controls.update();
+}
+
 // Check if renderer needs resizing
 function resizeRendererToDisplaySize() {
     const canvas = renderer.domElement;
@@ -523,6 +591,7 @@ function render(time) {
         camera.updateProjectionMatrix();
     }
     
+    updateCameraMovement();
     animateSoftball(time);
     updateDoorAnimation();
     
